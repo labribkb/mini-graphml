@@ -1,8 +1,27 @@
+#[cfg(feature = "petgraph")]
+pub mod petgraph;
+
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use std::path::Path;
+use std::{
+    ops::{Deref, DerefMut},
+    path::Path,
+};
 
 pub type GraphMLNoData = GraphML<()>;
+
+impl<NodeData: std::clone::Clone> Deref for GraphML<NodeData> {
+    type Target = Graph<NodeData>;
+    fn deref(&self) -> &Self::Target {
+        &self.graph
+    }
+}
+
+impl<NodeData: std::clone::Clone> From<GraphML<NodeData>> for Graph<NodeData> {
+    fn from(val: GraphML<NodeData>) -> Self {
+        val.graph
+    }
+}
 
 trait AsStrId: Clone {
     fn id(&self) -> &str;
@@ -98,6 +117,16 @@ where
     edges: EdgesMap,
 }
 
+impl<NodeData: Clone> Graph<NodeData> {
+    pub fn nodes(&self) -> impl Iterator<Item = &Node<NodeData>> {
+        self.nodes.0.values()
+    }
+
+    pub fn edges(&self) -> impl Iterator<Item = &Edge> {
+        self.edges.0.values()
+    }
+}
+
 #[derive(Deserialize, Serialize, Clone)]
 #[serde(rename = "node")]
 pub struct Node<NodeData = ()> {
@@ -119,6 +148,16 @@ pub struct Edge {
     #[serde(rename = "directed")]
     #[serde(skip_serializing_if = "EdgeDirection::is_unspecified")]
     direction: EdgeDirection,
+}
+
+impl Edge {
+    fn src_id(&self) -> &str {
+        &self.source
+    }
+
+    fn tgt_id(&self) -> &str {
+        &self.target
+    }
 }
 
 impl<NodeData: for<'a> Deserialize<'a> + Clone> GraphML<NodeData> {
@@ -155,11 +194,16 @@ impl<NodeData: Clone> AsStrId for Node<NodeData> {
 #[derive(Deserialize, Serialize)]
 pub struct StuffList<Stuff: AsStrId>(Vec<Stuff>);
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, Default)]
 #[serde(from = "StuffList<Stuff>")]
 #[serde(into = "StuffList<Stuff>")]
 pub struct StuffMap<Stuff: AsStrId>(IndexMap<String, Stuff>);
 
+impl<Stuff: AsStrId> StuffMap<Stuff> {
+    pub fn new() -> Self {
+        Self(IndexMap::new())
+    }
+}
 impl<Stuff: AsStrId> From<StuffList<Stuff>> for StuffMap<Stuff> {
     fn from(value: StuffList<Stuff>) -> StuffMap<Stuff> {
         StuffMap::<Stuff>(
@@ -175,6 +219,20 @@ impl<Stuff: AsStrId> From<StuffList<Stuff>> for StuffMap<Stuff> {
 impl<Stuff: AsStrId> From<StuffMap<Stuff>> for StuffList<Stuff> {
     fn from(value: StuffMap<Stuff>) -> Self {
         StuffList(value.0.into_values().collect())
+    }
+}
+
+impl<Stuff: AsStrId> Deref for StuffMap<Stuff> {
+    type Target = IndexMap<String, Stuff>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<Stuff: AsStrId> DerefMut for StuffMap<Stuff> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 

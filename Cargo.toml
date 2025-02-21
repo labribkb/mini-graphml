@@ -1,6 +1,6 @@
 [package]
 name = "mini-graphml"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 description = "Minimal parser of graphml files. Can only parse very simple graphs. STill workin in progress"
 categories = ["parser", "graphml"]
@@ -21,4 +21,5 @@ tar = "0.4.43"
 flate2 = "1.0.35"
 
 [features]
+default = ["petgraph"]
 petgraph = ["dep:petgraph"]
